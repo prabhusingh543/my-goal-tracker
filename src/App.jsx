@@ -63,6 +63,7 @@ export default function DailyGoalTracker() {
 
   // Favicon Injection
   useEffect(() => {
+    document.title = "Goal Ledger";
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
     link.type = 'image/svg+xml';
     link.rel = 'icon';
