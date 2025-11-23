@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
-
 // --- STORAGE HELPERS ---
 const getStorageKey = (type, year, month) => {
   const mKey = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -325,6 +323,19 @@ export default function DailyGoalTracker() {
     reader.readAsText(file);
   }
 
+  // --- REUSABLE THEME TOGGLE COMPONENT ---
+  const ThemeToggle = ({ className = "" }) => (
+    <div 
+        onClick={() => setDarkMode(!darkMode)} 
+        className={`w-12 h-7 md:w-14 md:h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${darkMode ? 'bg-slate-700 justify-end' : 'bg-indigo-200 justify-start'} ${className}`} 
+        title="Toggle Theme"
+    >
+        <motion.div layout className="bg-white w-5 h-5 md:w-6 md:h-6 rounded-full shadow-md flex items-center justify-center text-xs select-none">
+        {darkMode ? '🌙' : '☀️'}
+        </motion.div>
+    </div>
+  );
+
   return (
     <div className={`relative w-full min-h-screen p-2 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900 text-gray-100' : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50 text-gray-900'}`}>
 
@@ -355,8 +366,13 @@ export default function DailyGoalTracker() {
       }
     `}</style>
       
-      <div className={`max-w-7xl mx-auto backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl border border-white/20 p-4 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900/70 shadow-black/50' : 'bg-white/60 shadow-indigo-100/50'}`}>
+      <div className={`relative max-w-7xl mx-auto backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl border border-white/20 p-4 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900/70 shadow-black/50' : 'bg-white/60 shadow-indigo-100/50'}`}>
         
+        {/* MOBILE TOGGLE (Visible only on small screens, Absolute Top Right) */}
+        <div className="absolute top-4 right-4 md:hidden z-50">
+            <ThemeToggle />
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
@@ -386,11 +402,11 @@ export default function DailyGoalTracker() {
 
             <button onClick={goToTodayAndHighlight} className="px-3 py-1.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-xl text-xs md:text-sm font-semibold hover:bg-indigo-200 transition-colors">Today</button>
             
-            <div onClick={() => setDarkMode(!darkMode)} className={`w-12 h-7 md:w-14 md:h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${darkMode ? 'bg-slate-700 justify-end' : 'bg-indigo-200 justify-start'}`} title="Toggle Theme">
-              <motion.div layout className="bg-white w-5 h-5 md:w-6 md:h-6 rounded-full shadow-md flex items-center justify-center text-xs select-none">
-                {darkMode ? '🌙' : '☀️'}
-              </motion.div>
+            {/* DESKTOP TOGGLE (Hidden on mobile, Visible on MD+) */}
+            <div className="hidden md:flex">
+                <ThemeToggle />
             </div>
+
           </div>
         </div>
 
@@ -652,7 +668,6 @@ function DayEventsEditor({ dateKey, day, events = [], onAdd, onUpdate, onRemove,
           return (
 
             
-
             <div key={ev.id} className={`flex items-center justify-between p-2 rounded-md border ${bgClass}`}>
               <div className="overflow-hidden mr-2">
                 <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{ev.title}</div>
