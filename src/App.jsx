@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
+
 // --- STORAGE HELPERS ---
 const getStorageKey = (type, year, month) => {
   const mKey = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -325,6 +327,33 @@ export default function DailyGoalTracker() {
 
   return (
     <div className={`relative w-full min-h-screen p-2 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900 text-gray-100' : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50 text-gray-900'}`}>
+
+      {/* 👇 ADD THIS STYLE BLOCK HERE 👇 */}
+    <style>{`
+      /* Light Mode Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar { height: 12px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { 
+        background-color: #cbd5e1; /* Gray-300 */
+        border-radius: 20px; 
+        border: 3px solid transparent; 
+        background-clip: content-box; 
+      }
+      
+      /* Dark Mode Scrollbar */
+      .dark .custom-scrollbar::-webkit-scrollbar-track { 
+        background-color: #1e293b; /* Matches bg-slate-800 */
+        border-bottom-left-radius: 1rem; /* Optional: rounds the corner */
+        border-bottom-right-radius: 1rem;
+      }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb { 
+        background-color: #475569; /* Slate-600 (visible but subtle) */
+        border: 3px solid #1e293b; /* Creates padding effect */
+      }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { 
+        background-color: #64748b; /* Slate-500 on hover */
+      }
+    `}</style>
       
       <div className={`max-w-7xl mx-auto backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl border border-white/20 p-4 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900/70 shadow-black/50' : 'bg-white/60 shadow-indigo-100/50'}`}>
         
@@ -409,7 +438,7 @@ export default function DailyGoalTracker() {
           <div className="w-full md:w-auto text-xs font-medium text-rose-500">{spanError}</div>
         </div>
 
-        <div ref={scrollRef} className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm bg-white dark:bg-slate-800 relative">
+        <div ref={scrollRef} className="custom-scrollbar overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm bg-white dark:bg-slate-800 relative">
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -446,7 +475,7 @@ export default function DailyGoalTracker() {
                 })}
 
                 <th className="p-2 md:p-4 text-center text-xs font-extrabold text-gray-500 uppercase tracking-wider border-b border-l border-gray-100 dark:border-slate-700 min-w-[100px] md:min-w-[150px] sticky right-0 z-30 bg-gray-50 dark:bg-slate-900 shadow-sm">
-                  %
+                  PROGRESS %
                 </th>
               </tr>
             </thead>
@@ -621,6 +650,9 @@ function DayEventsEditor({ dateKey, day, events = [], onAdd, onUpdate, onRemove,
           }
 
           return (
+
+            
+
             <div key={ev.id} className={`flex items-center justify-between p-2 rounded-md border ${bgClass}`}>
               <div className="overflow-hidden mr-2">
                 <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{ev.title}</div>
