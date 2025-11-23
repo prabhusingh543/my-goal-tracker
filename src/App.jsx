@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // 🔑 IMPORTANT: PASTE YOUR GOOGLE GEMINI API KEY BELOW
 
-const apiKey = "AIzaSyDuRA1JQXBg_e0jn4L-AsBJkrw2CCWqecU"; 
+const apiKey = import.meta.env.VITE_API_KEY; 
 
 // Helper: Call Gemini API
 async function callGemini(prompt, systemInstruction = "You are a helpful assistant.") {
