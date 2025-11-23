@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Analytics } from "@vercel/analytics/next";
+// import { Analytics } from "@vercel/analytics/next"
 
 // 🔑 IMPORTANT: PASTE YOUR GOOGLE GEMINI API KEY BELOW
 
-const apiKey = import.meta.env.VITE_API_KEY; 
+const apiKey = "AIzaSyDuRA1JQXBg_e0jn4L-AsBJkrw2CCWqecU"; 
 
 // Helper: Call Gemini API
 async function callGemini(prompt, systemInstruction = "You are a helpful assistant.") {
