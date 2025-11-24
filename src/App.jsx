@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
-// Imports from other files
+// Imports from your other files (Make sure these exist as per previous steps)
 import ThemeToggle from './components/ThemeToggle';
 import DayEventsEditor from './components/DayEventsEditor';
 import { 
@@ -18,7 +18,7 @@ import {
 export default function DailyGoalTracker() {
   const today = new Date();
   
-  // State
+  // --- STATE ---
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [activities, setActivities] = useState(() => loadInitialActivities(today.getFullYear(), today.getMonth()));
@@ -130,15 +130,30 @@ export default function DailyGoalTracker() {
     setLastRemoved(null);
   }
 
-  function isFutureDay(d) {
-    const cell = new Date(year, month, d);
-    cell.setHours(0,0,0,0);
-    const now = new Date(); now.setHours(0,0,0,0);
-    return cell.getTime() > now.getTime();
+  // --- STRICT STREAK HELPER ---
+  function isDayLocked(d) {
+    const cellDate = new Date(year, month, d);
+    cellDate.setHours(0, 0, 0, 0); // Normalize to midnight
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
+
+    // 1. Block Future
+    if (cellDate > today) return true;
+
+    // 2. Block Past > 1 Day (Strict Streak)
+    const diffTime = today.getTime() - cellDate.getTime();
+    const diffDays = diffTime / (1000 * 3600 * 24);
+
+    // Allowed: Today (0) and Yesterday (1). Older (2+) are locked.
+    if (diffDays > 1) return true;
+
+    return false;
   }
 
-function toggleCheck(activityId, day) {
-    if (isFutureDay(day)) return;
+  function toggleCheck(activityId, day) {
+    // 1. Logic Guard: Stop if locked
+    if (isDayLocked(day)) return; 
 
     setActivities(prev => prev.map(act => {
       if (act.id !== activityId) return act;
@@ -151,11 +166,11 @@ function toggleCheck(activityId, day) {
 
       // --- CONFETTI LOGIC ---
       if (isChecking) {
-         // Calculate hypothetical new stats based on the updated 'copy'
          const mt = daysInMonth(year, month);
          const start = Math.max(1, Math.min(dayFrom, mt));
          const end = Math.max(1, Math.min(dayTo, mt));
          const s = Math.min(start, end);
+         
          const effectiveEnd = (year === today.getFullYear() && month === today.getMonth()) 
             ? Math.min(Math.max(start, end), today.getDate()) 
             : Math.max(start, end);
@@ -167,13 +182,12 @@ function toggleCheck(activityId, day) {
             if (copy[dateString(year, month, d)]) checkedCount++;
          }
 
-         // If we reached 100%, FIRE!
          if (totalDays > 0 && checkedCount === totalDays) {
             confetti({
                particleCount: 100,
                spread: 70,
                origin: { y: 0.6 },
-               colors: ['#6366f1', '#10b981', '#f59e0b'] // Indigo, Emerald, Amber
+               colors: ['#6366f1', '#10b981', '#f59e0b'] 
             });
          }
       }
@@ -512,25 +526,41 @@ function toggleCheck(activityId, day) {
 
                     {shownDays.map(d => {
                       const checked = !!a.checks[dateString(year, month, d)];
-                      const future = isFutureDay(d);
+                      
+                      // --- STRICT STREAK UI LOGIC ---
+                      const locked = isDayLocked(d); 
+                      const isFuture = new Date(year, month, d) > new Date();
+                      const isMissed = locked && !checked && !isFuture;
+                      // ------------------------------
+
                       return (
                         <td key={d} className={`p-0 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
+                          
                           <motion.button 
                             initial="initial"
-                            whileHover="hover"
-                            whileTap="tap"
-                            disabled={future}
+                            whileHover={!locked ? "hover" : undefined}
+                            whileTap={!locked ? "tap" : undefined}
+                            disabled={locked} // DISABLE CLICK IF LOCKED
                             onClick={() => toggleCheck(a.id, d)}
                             aria-pressed={checked}
                             aria-label={`${dateString(year, month, d)} — ${a.name} — ${checked ? 'completed' : 'not completed'}`}
-                            className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${future ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+                            className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${locked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                           >
                              <motion.div
-                                variants={checkboxVisualVariants}
-                                className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${future ? 'bg-gray-100 dark:bg-slate-800' : checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+                                variants={!locked ? checkboxVisualVariants : {}}
+                                className={`
+                                  w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300
+                                  ${
+                                    checked 
+                                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' 
+                                      : isMissed 
+                                        ? 'bg-rose-50 border-2 border-rose-100 dark:bg-slate-800 dark:border-slate-700 opacity-50' // Missed day visual
+                                        : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500' // Future/Today
+                                  }
+                                `}
                              >
                                  <AnimatePresence mode="wait">
-                                    {checked && (
+                                    {checked ? (
                                         <motion.span
                                             key="check"
                                             variants={checkmarkVariants}
@@ -543,7 +573,10 @@ function toggleCheck(activityId, day) {
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                             </svg>
                                         </motion.span>
-                                    )}
+                                    ) : isMissed ? (
+                                      // Optional: Visual cue for missed
+                                      <span className="text-rose-300 dark:text-slate-600 text-xs font-bold">−</span>
+                                    ) : null}
                                  </AnimatePresence>
                              </motion.div>
                           </motion.button>
