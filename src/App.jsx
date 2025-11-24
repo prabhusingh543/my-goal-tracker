@@ -1,66 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- 1. FRAMER MOTION VARIANTS (Optimized for Clickability) ---
-
-const hoverCardVariants = {
-  initial: { scale: 1, y: 0, boxShadow: '0 0 0 rgba(0,0,0,0)', zIndex: 1 },
-  hover: {
-    scale: 1.01,
-    y: -4,
-    zIndex: 50,
-    boxShadow: '0 12px 30px rgba(16,24,40,0.12)',
-    transition: { type: 'spring', stiffness: 300, damping: 24 }
-  },
-  tap: { scale: 0.99, transition: { type: 'spring', stiffness: 500, damping: 30 } }
-};
-
-// RENAMED: This now applies to the INNER VISUAL BOX, not the button container
-const checkboxVisualVariants = {
-  initial: { scale: 1 },
-  hover: { scale: 1.15, transition: { type: 'spring', stiffness: 600, damping: 20 } },
-  tap: { scale: 0.9, transition: { type: 'spring', stiffness: 800, damping: 30 } }
-};
-
-const progressVariants = {
-  initial: { scale: 1 },
-  hover: { scale: 1.05, y: -2, transition: { type: 'spring', stiffness: 300, damping: 20 } }
-};
-
-const checkmarkVariants = {
-  hidden: { scale: 0, opacity: 0 },
-  visible: { 
-    scale: 1, 
-    opacity: 1,
-    transition: { type: 'spring', stiffness: 500, damping: 25 }
-  }
-};
-
-// --- STORAGE HELPERS ---
-const getStorageKey = (type, year, month) => {
-  const mKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-  return type === 'events' ? `daily-goals-events-${mKey}` : `daily-goals-${mKey}`;
-};
-
-const loadInitialActivities = (year, month) => {
-  try {
-    const raw = localStorage.getItem(getStorageKey('activities', year, month));
-    if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn(e); }
-  return [
-    { id: Math.random().toString(36).slice(2, 9), name: 'Meditation', checks: {} }, 
-    { id: Math.random().toString(36).slice(2, 9), name: 'Exercise', checks: {} }, 
-    { id: Math.random().toString(36).slice(2, 9), name: 'Study', checks: {} }
-  ];
-};
-
-const loadInitialEvents = (year, month) => {
-  try {
-    const raw = localStorage.getItem(getStorageKey('events', year, month));
-    if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn(e); }
-  return {};
-};
+// Imports from other files
+import ThemeToggle from './components/ThemeToggle';
+import DayEventsEditor from './components/DayEventsEditor';
+import { 
+  hoverCardVariants, hoverDayCell, checkboxVisualVariants, 
+  progressVariants, checkmarkVariants 
+} from './utils/animations';
+import { 
+  monthNames, daysInMonth, dateString, weekdayShort, 
+  getStorageKey, loadInitialActivities, loadInitialEvents, 
+  dayBadgeColor, getGradientStyle 
+} from './utils/helpers';
 
 export default function DailyGoalTracker() {
   const today = new Date();
@@ -90,11 +42,6 @@ export default function DailyGoalTracker() {
   const [darkMode, setDarkMode] = useState(() => {
     try { return localStorage.getItem('dg-dark-mode') === '1'; } catch (e) { return false; }
   });
-
-  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const daysInMonth = (y,m) => new Date(y, m+1, 0).getDate();
-  const dateString = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  const weekdayShort = (y,m,d) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y,m,d).getDay()];
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -246,12 +193,6 @@ export default function DailyGoalTracker() {
     return maxS;
   }
 
-  function getGradientStyle(p) { 
-    if (p >= 75) return 'linear-gradient(90deg, #10b981, #6ee7b7, #10b981)'; 
-    if (p >= 40) return 'linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)'; 
-    return 'linear-gradient(90deg, #ef4444, #fca5a5, #ef4444)'; 
-  }
-
   const monthTotal = daysInMonth(year, month);
   const canApply = (() => {
     const a = Number(pendingFrom), b = Number(pendingTo);
@@ -313,15 +254,6 @@ export default function DailyGoalTracker() {
   function handleMonthChange(e) { setMonth(Number(e.target.value)); }
   function handleYearChange(e) { setYear(Number(e.target.value || today.getFullYear())); }
 
-  function dayBadgeColor(eventsForDay) {
-    if (!eventsForDay || eventsForDay.length === 0) return { bg: 'bg-transparent', text: 'text-gray-700 dark:text-gray-200' };
-    const hasImportant = eventsForDay.some(e => e.priority === 'Important');
-    const hasExam = eventsForDay.some(e => e.type === 'Exam');
-    if (hasImportant) return { bg: 'bg-amber-200 dark:bg-amber-400', text: 'text-amber-900 dark:text-amber-950' };
-    if (hasExam) return { bg: 'bg-purple-200 dark:bg-purple-400', text: 'text-purple-900 dark:text-purple-950' };
-    return { bg: 'bg-gray-200 dark:bg-gray-600', text: 'text-gray-900 dark:text-gray-50' };
-  }
-
   function exportMonth() {
     const payload = { year, month, activities, events };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -343,23 +275,6 @@ export default function DailyGoalTracker() {
     reader.readAsText(file);
   }
 
-  // --- THEME TOGGLE ---
-  const ThemeToggle = ({ className = "" }) => (
-    <motion.button 
-        whileHover={{ scale: 1.08, rotate: 5 }} 
-        whileTap={{ scale: 0.95, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-        onClick={() => setDarkMode(!darkMode)} 
-        className={`w-12 h-7 md:w-14 md:h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-slate-900 ${darkMode ? 'bg-slate-700 justify-end' : 'bg-indigo-200 justify-start'} ${className}`} 
-        title="Toggle Theme"
-        aria-label={`Switch to ${darkMode ? 'light' : 'dark'} mode`}
-    >
-        <motion.div layout className="bg-white w-5 h-5 md:w-6 md:h-6 rounded-full shadow-md flex items-center justify-center text-xs select-none">
-          {darkMode ? '🌙' : '☀️'}
-        </motion.div>
-    </motion.button>
-  );
-
   return (
     <div className={`relative w-full min-h-screen p-2 md:p-8 transition-colors duration-500 ${darkMode ? 'bg-slate-900 text-gray-100' : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50 text-gray-900'}`}>
 
@@ -378,6 +293,7 @@ export default function DailyGoalTracker() {
       .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #64748b; }
     `}</style>
       
+      {/* MAIN CONTAINER */}
       <motion.div 
         variants={hoverCardVariants}
         initial="initial"
@@ -387,7 +303,7 @@ export default function DailyGoalTracker() {
         
         {/* MOBILE TOGGLE */}
         <div className="absolute top-4 right-4 md:hidden z-50">
-            <ThemeToggle />
+            <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
@@ -429,7 +345,7 @@ export default function DailyGoalTracker() {
             </motion.button>
             
             <div className="hidden md:flex">
-                <ThemeToggle />
+                <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             </div>
 
           </div>
@@ -496,7 +412,7 @@ export default function DailyGoalTracker() {
                     <motion.th 
                       key={d} 
                       id={`day-header-${d}`} 
-                      variants={checkboxVisualVariants}
+                      variants={hoverDayCell}
                       initial="initial"
                       whileHover="hover"
                       whileTap="tap"
@@ -562,10 +478,7 @@ export default function DailyGoalTracker() {
                       const checked = !!a.checks[dateString(year, month, d)];
                       const future = isFutureDay(d);
                       return (
-                        // FIXED: Removed padding on TD to maximize hit area
                         <td key={d} className={`p-0 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
-                          
-                          {/* FIXED: Button fills the entire cell (w-full h-full) so you can't miss it */}
                           <motion.button 
                             initial="initial"
                             whileHover="hover"
@@ -576,7 +489,6 @@ export default function DailyGoalTracker() {
                             aria-label={`${dateString(year, month, d)} — ${a.name} — ${checked ? 'completed' : 'not completed'}`}
                             className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${future ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
                           >
-                             {/* VISUAL BOX: This contains the color/border and receives the animation */}
                              <motion.div
                                 variants={checkboxVisualVariants}
                                 className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${future ? 'bg-gray-100 dark:bg-slate-800' : checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
@@ -686,88 +598,6 @@ export default function DailyGoalTracker() {
         )}
 
       </motion.div>
-    </div>
-  );
-}
-
-function DayEventsEditor({ dateKey, day, events = [], onAdd, onUpdate, onRemove, onClose }) {
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('General');
-  const [priority, setPriority] = useState('Normal');
-  const [localEvents, setLocalEvents] = useState(events.slice());
-
-  useEffect(() => setLocalEvents(events.slice()), [events]);
-
-  function handleAdd(e) {
-    e?.preventDefault();
-    const t = title.trim();
-    if (!t) return;
-    const ev = { title: t, type, priority };
-    onAdd && onAdd(ev);
-    setTitle(''); setType('General'); setPriority('Normal');
-  }
-
-  function handleUpdate(id, patch) {
-    onUpdate && onUpdate(id, patch);
-  }
-
-  function handleRemove(id) {
-    if (!confirm('Remove event?')) return;
-    onRemove && onRemove(id);
-  }
-
-  return (
-    <div className="p-3 md:p-4 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">Events — {dateKey}</div>
-        <div className="flex items-center gap-2">
-          <button onClick={onClose} className="text-xs md:text-sm text-gray-500 hover:text-indigo-600">Close</button>
-        </div>
-      </div>
-
-      <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Event title" className="col-span-1 md:col-span-2 p-2 rounded-md bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 outline-none text-gray-900 dark:text-white text-sm" />
-        <select value={type} onChange={e => setType(e.target.value)} className="p-2 rounded-md bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 outline-none text-gray-900 dark:text-white text-sm">
-          <option>General</option>
-          <option>Exam</option>
-          <option>Meeting</option>
-        </select>
-        <select value={priority} onChange={e => setPriority(e.target.value)} className="p-2 rounded-md bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 outline-none text-gray-900 dark:text-white text-sm">
-          <option>Normal</option>
-          <option>Important</option>
-        </select>
-        <div className="md:col-span-4">
-          <button type="submit" className="w-full md:w-auto px-3 py-2 mt-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium">Add Event</button>
-        </div>
-      </form>
-
-      <div className="space-y-2">
-        {localEvents.length === 0 && <div className="text-sm text-gray-500">No events for this day.</div>}
-        {localEvents.map(ev => {
-          let bgClass = "bg-white dark:bg-slate-700 border-gray-100 dark:border-slate-600";
-          if (ev.priority === 'Important') {
-            bgClass = "bg-amber-100 dark:bg-amber-900/40 border-amber-200 dark:border-amber-700";
-          } else if (ev.type === 'Exam') {
-             bgClass = "bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-700";
-          }
-
-          return (
-            <div key={ev.id} className={`flex items-center justify-between p-2 rounded-md border ${bgClass}`}>
-              <div className="overflow-hidden mr-2">
-                <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{ev.title}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{ev.type} • {ev.priority}</div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => {
-                  const newTitle = prompt('Edit title', ev.title);
-                  if (newTitle != null) handleUpdate(ev.id, { title: String(newTitle) });
-                }} className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400">Edit</button>
-                <button onClick={() => handleRemove(ev.id)} className="text-xs text-rose-500 hover:text-rose-700">Remove</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
