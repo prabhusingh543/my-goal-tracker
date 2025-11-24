@@ -76,6 +76,29 @@ export default function DailyGoalTracker() {
     setIsDataLoaded(true);
   }, [year, month]);
 
+  // --- NEW: AUTO-SCROLL TO TODAY ON LOAD ---
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const t = new Date();
+      // Check if we are viewing the actual current month/year
+      if (year === t.getFullYear() && month === t.getMonth()) {
+        const d = t.getDate();
+        if (scrollRef.current) {
+          const container = scrollRef.current;
+          const element = document.getElementById(`day-header-${d}`);
+          
+          if (element) {
+            // Center the element in the container
+            const scrollPos = element.offsetLeft - (container.clientWidth / 2) + (element.clientWidth / 2);
+            container.scrollTo({ left: scrollPos, behavior: 'smooth' });
+          }
+        }
+      }
+    }, 500); // 500ms delay allows DOM to paint
+
+    return () => clearTimeout(timer);
+  }, [year, month, isDataLoaded]); 
+
   useEffect(() => {
     if (!isDataLoaded) return;
     const actKey = getStorageKey('activities', year, month);
@@ -373,7 +396,6 @@ export default function DailyGoalTracker() {
           </div>
         </div>
 
-        {/* INPUT AREA */}
         <div className="mb-6 flex flex-col md:flex-row gap-3">
           <div className="flex-1 w-full relative group">
             <input 
@@ -396,7 +418,6 @@ export default function DailyGoalTracker() {
           </div>
         </div>
 
-        {/* RANGE CONTROLS */}
         <div className={`mb-6 p-3 md:p-4 rounded-2xl border border-gray-100 dark:border-slate-700 flex flex-wrap items-center gap-2 md:gap-3 transition-colors ${darkMode ? 'bg-slate-800/50' : 'bg-gray-50/50'}`}>
           <div className="text-xs md:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-full md:w-auto">View Range</div>
           <div className="flex items-center gap-2">
@@ -416,7 +437,6 @@ export default function DailyGoalTracker() {
           <div className="w-full md:w-auto text-xs font-medium text-rose-500">{spanError}</div>
         </div>
 
-        {/* MAIN TABLE */}
         <div ref={scrollRef} className="custom-scrollbar overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm bg-white dark:bg-slate-800 relative">
           <table className="w-full border-collapse">
             <thead>
@@ -463,121 +483,115 @@ export default function DailyGoalTracker() {
               </tr>
             </thead>
             <tbody>
-  {/* 1. ADD AnimatePresence to handle row removal animations */}
-  <AnimatePresence mode="popLayout">
-    {activities.map((a, idx) => {
-      const { checkedCount, totalDays, percent } = getEfficiencyData(a);
-      const { current: currentStreak, max: maxStreak } = calculateGlobalStats(a, year, month);
-      const gradientBg = getGradientStyle(percent);
+              <AnimatePresence mode="popLayout">
+                {activities.map((a, idx) => {
+                  const { checkedCount, totalDays, percent } = getEfficiencyData(a);
+                  const { current: currentStreak, max: maxStreak } = calculateGlobalStats(a, year, month);
+                  const gradientBg = getGradientStyle(percent);
 
-      return (
-        <motion.tr 
-          key={a.id} 
-          layout // <--- 2. ADD layout prop for smooth reordering when one is deleted
-          exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }} // <--- 3. ADD exit animation
-          className="group bg-white dark:bg-slate-800"
-          variants={hoverCardVariants}
-          initial="initial"
-          whileHover="hover"
-          whileTap="tap"
-          role="group"
-          tabIndex={0}
-        >
-          <td className="hidden md:table-cell p-4 border-b border-r border-gray-100 dark:border-slate-700 font-medium text-gray-400 text-center sticky left-0 z-20 group-hover:z-50 shadow-sm transition-colors bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
-            {idx + 1}
-          </td>
-          
-          <td className="p-2 md:p-4 border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 z-20 group-hover:z-50 shadow-sm transition-colors align-top bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
-  <div className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-lg break-words max-w-[110px] md:max-w-none">{a.name}</div>
-  
-  <div className="flex flex-col items-start gap-1 mt-1 md:mt-2">
-    <div className="flex items-center gap-1">
-      <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 font-medium flex items-center gap-1">🔥 {currentStreak}</div>
-      <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium flex items-center gap-1">🏆 {maxStreak}</div>
-    </div>
-
-    {/* --- FIXED DELETE BUTTON --- */}
-    <motion.button 
-      whileHover={{ scale: 1.05, backgroundColor: "rgba(244, 63, 94, 0.1)", color: "#f43f5e" }} // rose-500 color
-      whileTap={{ scale: 0.95 }}
-      onClick={(e) => { e.stopPropagation(); removeActivity(a.id); }}
-      className="
-        relative group/btn flex items-center justify-center gap-1.5 mt-2 
-        px-3 py-1.5 rounded-lg 
-        text-gray-400 transition-all duration-200 
-        border border-transparent hover:border-rose-200 dark:hover:border-rose-900/30
-        cursor-pointer z-50
-      "
-      aria-label="Delete activity"
-    >
-      {/* pointer-events-none ensures the click ALWAYS registers on the button 
-         container, never getting 'stuck' on the SVG paths or text 
-      */}
-      <span className="pointer-events-none flex items-center gap-1.5">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
-        <span className="text-[11px] font-semibold">Delete</span>
-      </span>
-    </motion.button>
-    {/* --------------------------- */}
-
-  </div>
-</td>
-
-          {shownDays.map(d => {
-            const checked = !!a.checks[dateString(year, month, d)];
-            const locked = isDayLocked(d); 
-            const isFuture = new Date(year, month, d) > new Date();
-            const isMissed = locked && !checked && !isFuture;
-
-            return (
-              <td key={d} className={`p-0 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
-                <motion.button 
-                  initial="initial"
-                  whileHover={!locked ? "hover" : undefined}
-                  whileTap={!locked ? "tap" : undefined}
-                  disabled={locked} 
-                  onClick={() => toggleCheck(a.id, d)}
-                  className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${locked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                    <motion.div
-                      variants={!locked ? checkboxVisualVariants : {}}
-                      className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : isMissed ? 'bg-rose-50 border-2 border-rose-100 dark:bg-slate-800 dark:border-slate-700 opacity-50' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+                  return (
+                    <motion.tr 
+                      key={a.id} 
+                      layout
+                      exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
+                      className="group bg-white dark:bg-slate-800"
+                      variants={hoverCardVariants}
+                      initial="initial"
+                      whileHover="hover"
+                      whileTap="tap"
+                      role="group"
+                      tabIndex={0}
                     >
-                        <AnimatePresence mode="wait">
-                          {checked ? (
-                              <motion.span key="check" variants={checkmarkVariants} initial="hidden" animate="visible" exit="hidden" className="flex items-center justify-center">
-                                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                              </motion.span>
-                          ) : isMissed ? <span className="text-rose-300 dark:text-slate-600 text-xs font-bold">−</span> : null}
-                        </AnimatePresence>
-                    </motion.div>
-                </motion.button>
-              </td>
-            );
-          })}
-          
-          <td className="p-2 md:p-4 border-b border-l border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black transition-colors sticky right-0 z-20">
-            <motion.div className="progress-card rounded-md p-2" variants={progressVariants} initial="initial" whileHover="hover">
-                <div className="text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400 text-right mb-1">{checkedCount}/{totalDays}</div>
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="flex-1 h-2 md:h-2.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${percent}%`, backgroundPosition: ["0% 50%", "100% 50%"] }} transition={{ width: { type: "spring", stiffness: 50, damping: 15 }, backgroundPosition: { duration: 2, repeat: Infinity, ease: "linear" } }} style={{ backgroundImage: gradientBg, backgroundSize: "200% 100%" }} className="h-full rounded-full" />
-                  </div>
-                  <div className="text-xs md:text-base font-extrabold w-8 md:w-12 text-right text-gray-800 dark:text-gray-100">{percent}%</div>
-                </div>
-            </motion.div>
-          </td>
-        </motion.tr>
-      );
-    })}
-  </AnimatePresence>
-  {activities.length === 0 && (
-    <tr><td colSpan={shownDays.length + 3} className="p-8 md:p-12 text-center text-gray-400"><div className="mb-2 text-3xl md:text-4xl">✨</div>Add a habit above to start your journey!</td></tr>
-  )}
-</tbody>
+                      <td className="hidden md:table-cell p-4 border-b border-r border-gray-100 dark:border-slate-700 font-medium text-gray-400 text-center sticky left-0 z-20 group-hover:z-50 shadow-sm transition-colors bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
+                        {idx + 1}
+                      </td>
+                      
+                      <td className="p-2 md:p-4 border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 z-20 group-hover:z-50 shadow-sm transition-colors align-top bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
+                        <div className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-lg break-words max-w-[110px] md:max-w-none">{a.name}</div>
+                        
+                        <div className="flex flex-col items-start gap-1 mt-1 md:mt-2">
+                          <div className="flex items-center gap-1">
+                            <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 font-medium flex items-center gap-1">🔥 {currentStreak}</div>
+                            <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium flex items-center gap-1">🏆 {maxStreak}</div>
+                          </div>
+
+                          <motion.button 
+                            whileHover={{ scale: 1.05, backgroundColor: "rgba(244, 63, 94, 0.1)", color: "#f43f5e" }} 
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => { e.stopPropagation(); removeActivity(a.id); }}
+                            className="
+                              relative group/btn flex items-center justify-center gap-1.5 mt-2 
+                              px-3 py-1.5 rounded-lg 
+                              text-gray-400 transition-all duration-200 
+                              border border-transparent hover:border-rose-200 dark:hover:border-rose-900/30
+                              cursor-pointer z-50
+                            "
+                            aria-label="Delete activity"
+                          >
+                            <span className="pointer-events-none flex items-center gap-1.5">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              </svg>
+                              <span className="text-[11px] font-semibold">Delete</span>
+                            </span>
+                          </motion.button>
+
+                        </div>
+                      </td>
+
+                      {shownDays.map(d => {
+                        const checked = !!a.checks[dateString(year, month, d)];
+                        const locked = isDayLocked(d); 
+                        const isFuture = new Date(year, month, d) > new Date();
+                        const isMissed = locked && !checked && !isFuture;
+
+                        return (
+                          <td key={d} className={`p-0 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
+                            <motion.button 
+                              initial="initial"
+                              whileHover={!locked ? "hover" : undefined}
+                              whileTap={!locked ? "tap" : undefined}
+                              disabled={locked} 
+                              onClick={() => toggleCheck(a.id, d)}
+                              className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${locked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                                <motion.div
+                                  variants={!locked ? checkboxVisualVariants : {}}
+                                  className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : isMissed ? 'bg-rose-50 border-2 border-rose-100 dark:bg-slate-800 dark:border-slate-700 opacity-50' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+                                >
+                                    <AnimatePresence mode="wait">
+                                      {checked ? (
+                                          <motion.span key="check" variants={checkmarkVariants} initial="hidden" animate="visible" exit="hidden" className="flex items-center justify-center">
+                                              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                          </motion.span>
+                                      ) : isMissed ? <span className="text-rose-300 dark:text-slate-600 text-xs font-bold">−</span> : null}
+                                    </AnimatePresence>
+                                </motion.div>
+                            </motion.button>
+                          </td>
+                        );
+                      })}
+                      
+                      <td className="p-2 md:p-4 border-b border-l border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black transition-colors sticky right-0 z-20">
+                        <motion.div className="progress-card rounded-md p-2" variants={progressVariants} initial="initial" whileHover="hover">
+                            <div className="text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400 text-right mb-1">{checkedCount}/{totalDays}</div>
+                            <div className="flex items-center gap-2 md:gap-3">
+                              <div className="flex-1 h-2 md:h-2.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${percent}%`, backgroundPosition: ["0% 50%", "100% 50%"] }} transition={{ width: { type: "spring", stiffness: 50, damping: 15 }, backgroundPosition: { duration: 2, repeat: Infinity, ease: "linear" } }} style={{ backgroundImage: gradientBg, backgroundSize: "200% 100%" }} className="h-full rounded-full" />
+                              </div>
+                              <div className="text-xs md:text-base font-extrabold w-8 md:w-12 text-right text-gray-800 dark:text-gray-100">{percent}%</div>
+                            </div>
+                        </motion.div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </AnimatePresence>
+              {activities.length === 0 && (
+                <tr><td colSpan={shownDays.length + 3} className="p-8 md:p-12 text-center text-gray-400"><div className="mb-2 text-3xl md:text-4xl">✨</div>Add a habit above to start your journey!</td></tr>
+              )}
+            </tbody>
           </table>
         </div>
 
