@@ -1,35 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- 1. FRAMER MOTION VARIANTS (Optimized) ---
+// --- 1. FRAMER MOTION VARIANTS (Optimized for Clickability) ---
 
-// Row/Card Hover: lifts up with a shadow
 const hoverCardVariants = {
   initial: { scale: 1, y: 0, boxShadow: '0 0 0 rgba(0,0,0,0)', zIndex: 1 },
   hover: {
-    scale: 1.01, // Kept subtle to avoid huge layout shifts
+    scale: 1.01,
     y: -4,
-    zIndex: 10,
+    zIndex: 50,
     boxShadow: '0 12px 30px rgba(16,24,40,0.12)',
     transition: { type: 'spring', stiffness: 300, damping: 24 }
   },
   tap: { scale: 0.99, transition: { type: 'spring', stiffness: 500, damping: 30 } }
 };
 
-// Day Cell: Pop effect on hover/tap
-const hoverDayCell = {
+// RENAMED: This now applies to the INNER VISUAL BOX, not the button container
+const checkboxVisualVariants = {
   initial: { scale: 1 },
   hover: { scale: 1.15, transition: { type: 'spring', stiffness: 600, damping: 20 } },
   tap: { scale: 0.9, transition: { type: 'spring', stiffness: 800, damping: 30 } }
 };
 
-// Progress Column: Independent lift
 const progressVariants = {
   initial: { scale: 1 },
   hover: { scale: 1.05, y: -2, transition: { type: 'spring', stiffness: 300, damping: 20 } }
 };
 
-// Checkmark Bounce: The "pop" when checked
 const checkmarkVariants = {
   hidden: { scale: 0, opacity: 0 },
   visible: { 
@@ -50,7 +47,11 @@ const loadInitialActivities = (year, month) => {
     const raw = localStorage.getItem(getStorageKey('activities', year, month));
     if (raw) return JSON.parse(raw);
   } catch (e) { console.warn(e); }
-  return [{ id: Math.random().toString(36).slice(2, 9), name: 'Meditation', checks: {} }, { id: Math.random().toString(36).slice(2, 9), name: 'Exercise', checks: {} }, { id: Math.random().toString(36).slice(2, 9), name: 'Study', checks: {} }];
+  return [
+    { id: Math.random().toString(36).slice(2, 9), name: 'Meditation', checks: {} }, 
+    { id: Math.random().toString(36).slice(2, 9), name: 'Exercise', checks: {} }, 
+    { id: Math.random().toString(36).slice(2, 9), name: 'Study', checks: {} }
+  ];
 };
 
 const loadInitialEvents = (year, month) => {
@@ -245,7 +246,11 @@ export default function DailyGoalTracker() {
     return maxS;
   }
 
-  function percentColor(p) { if (p >= 75) return '#10b981'; if (p >= 40) return '#f59e0b'; return '#ef4444'; }
+  function getGradientStyle(p) { 
+    if (p >= 75) return 'linear-gradient(90deg, #10b981, #6ee7b7, #10b981)'; 
+    if (p >= 40) return 'linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)'; 
+    return 'linear-gradient(90deg, #ef4444, #fca5a5, #ef4444)'; 
+  }
 
   const monthTotal = daysInMonth(year, month);
   const canApply = (() => {
@@ -338,7 +343,7 @@ export default function DailyGoalTracker() {
     reader.readAsText(file);
   }
 
-  // --- THEME TOGGLE (Accessible & Animated) ---
+  // --- THEME TOGGLE ---
   const ThemeToggle = ({ className = "" }) => (
     <motion.button 
         whileHover={{ scale: 1.08, rotate: 5 }} 
@@ -373,7 +378,6 @@ export default function DailyGoalTracker() {
       .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #64748b; }
     `}</style>
       
-      {/* MAIN CONTAINER WITH HOVER LIFT */}
       <motion.div 
         variants={hoverCardVariants}
         initial="initial"
@@ -413,7 +417,6 @@ export default function DailyGoalTracker() {
               className="w-16 md:w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 text-center text-gray-700 dark:text-gray-200 font-medium rounded-lg shadow-sm px-1 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
             />
 
-            {/* TODAY BUTTON WITH POP */}
             <motion.button 
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -425,7 +428,6 @@ export default function DailyGoalTracker() {
                 Today
             </motion.button>
             
-            {/* DESKTOP TOGGLE */}
             <div className="hidden md:flex">
                 <ThemeToggle />
             </div>
@@ -494,7 +496,7 @@ export default function DailyGoalTracker() {
                     <motion.th 
                       key={d} 
                       id={`day-header-${d}`} 
-                      variants={hoverDayCell}
+                      variants={checkboxVisualVariants}
                       initial="initial"
                       whileHover="hover"
                       whileTap="tap"
@@ -527,9 +529,9 @@ export default function DailyGoalTracker() {
                 const { checkedCount, totalDays, percent } = getEfficiencyData(a);
                 const current = getCurrentStreak(a);
                 const maxS = getMaxStreak(a);
+                const gradientBg = getGradientStyle(percent);
 
                 return (
-                  // ACTIVITY ROW with variants & focus management
                   <motion.tr 
                     key={a.id} 
                     className="group bg-white dark:bg-slate-800"
@@ -538,39 +540,33 @@ export default function DailyGoalTracker() {
                     whileHover="hover"
                     whileTap="tap"
                     role="group"
-                    tabIndex={0} // Allows keyboard users to focus on the row context
+                    tabIndex={0}
                   >
                     <td className="hidden md:table-cell p-4 border-b border-r border-gray-100 dark:border-slate-700 font-medium text-gray-400 text-center sticky left-0 z-20 group-hover:z-50 shadow-sm transition-colors bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
                       {idx + 1}
                     </td>
                     
                     <td className="p-2 md:p-4 border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 z-20 group-hover:z-50 shadow-sm transition-colors align-top bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
-  <div className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-lg break-words max-w-[110px] md:max-w-none">{a.name}</div>
-  
-  <div className="flex flex-col items-start gap-1 mt-1 md:mt-2">
-    
-    <div className="flex items-center gap-1">
-      <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 font-medium flex items-center gap-1">
-        🔥 {current}
-      </div>
-      <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium flex items-center gap-1">
-        🏆 {maxS}
-      </div>
-    </div>
-
-    <button onClick={() => removeActivity(a.id)} className="text-[10px] md:text-xs text-gray-400 hover:text-rose-500 transition-colors px-1 mt-0.5">Delete</button>
-  </div>
-</td>
+                      <div className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-lg break-words max-w-[110px] md:max-w-none">{a.name}</div>
+                      
+                      <div className="flex flex-col items-start gap-1 mt-1 md:mt-2">
+                        <div className="flex items-center gap-1">
+                          <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 font-medium flex items-center gap-1">🔥 {current}</div>
+                          <div className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium flex items-center gap-1">🏆 {maxS}</div>
+                        </div>
+                        <button onClick={() => removeActivity(a.id)} className="text-[10px] md:text-xs text-gray-400 hover:text-rose-500 transition-colors px-1 mt-0.5">Delete</button>
+                      </div>
+                    </td>
 
                     {shownDays.map(d => {
                       const checked = !!a.checks[dateString(year, month, d)];
                       const future = isFutureDay(d);
                       return (
-                        <td key={d} className={`p-1 md:p-2 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
+                        // FIXED: Removed padding on TD to maximize hit area
+                        <td key={d} className={`p-0 border-b border-r border-gray-100 dark:border-slate-700 text-center group-hover:bg-gray-50 dark:group-hover:bg-slate-700 transition-colors ${selectedDay === d ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
                           
-                          {/* DAY CELL BUTTON */}
+                          {/* FIXED: Button fills the entire cell (w-full h-full) so you can't miss it */}
                           <motion.button 
-                            variants={hoverDayCell}
                             initial="initial"
                             whileHover="hover"
                             whileTap="tap"
@@ -578,32 +574,36 @@ export default function DailyGoalTracker() {
                             onClick={() => toggleCheck(a.id, d)}
                             aria-pressed={checked}
                             aria-label={`${dateString(year, month, d)} — ${a.name} — ${checked ? 'completed' : 'not completed'}`}
-                            className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 mx-auto ${future ? 'opacity-20 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+                            className={`w-full h-12 md:h-16 flex items-center justify-center focus:outline-none ${future ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
                           >
-                             <AnimatePresence mode="wait">
-                                {checked && (
-                                    // CHECKMARK BOUNCE
-                                    <motion.span
-                                        key="check"
-                                        variants={checkmarkVariants}
-                                        initial="hidden"
-                                        animate="visible"
-                                        exit="hidden"
-                                        className="flex items-center justify-center"
-                                    >
-                                        <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </motion.span>
-                                )}
-                             </AnimatePresence>
+                             {/* VISUAL BOX: This contains the color/border and receives the animation */}
+                             <motion.div
+                                variants={checkboxVisualVariants}
+                                className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${future ? 'bg-gray-100 dark:bg-slate-800' : checked ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none' : 'bg-gray-100 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+                             >
+                                 <AnimatePresence mode="wait">
+                                    {checked && (
+                                        <motion.span
+                                            key="check"
+                                            variants={checkmarkVariants}
+                                            initial="hidden"
+                                            animate="visible"
+                                            exit="hidden"
+                                            className="flex items-center justify-center"
+                                        >
+                                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </motion.span>
+                                    )}
+                                 </AnimatePresence>
+                             </motion.div>
                           </motion.button>
                         </td>
                       );
                     })}
                     
                     <td className="p-2 md:p-4 border-b border-l border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black transition-colors sticky right-0 z-20">
-                      {/* PROGRESS COLUMN ANIMATION */}
                       <motion.div
                         className="progress-card rounded-md p-2"
                         variants={progressVariants}
@@ -615,12 +615,21 @@ export default function DailyGoalTracker() {
                           </div>
 
                           <div className="flex items-center gap-2 md:gap-3">
-                            <div className="flex-1 h-2 md:h-2.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="flex-1 h-2 md:h-2.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
                               <motion.div 
                                 initial={{ width: 0 }} 
-                                animate={{ width: `${percent}%` }} 
-                                transition={{ duration: 1, ease: "circOut" }}
-                                style={{ backgroundColor: percentColor(percent) }} 
+                                animate={{ 
+                                  width: `${percent}%`,
+                                  backgroundPosition: ["0% 50%", "100% 50%"] 
+                                }} 
+                                transition={{ 
+                                  width: { type: "spring", stiffness: 50, damping: 15 },
+                                  backgroundPosition: { duration: 2, repeat: Infinity, ease: "linear" } 
+                                }}
+                                style={{ 
+                                  backgroundImage: gradientBg,
+                                  backgroundSize: "200% 100%" 
+                                }} 
                                 className="h-full rounded-full" 
                               />
                             </div>
