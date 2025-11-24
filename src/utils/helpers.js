@@ -159,3 +159,40 @@ export const getGradientStyle = (p) => {
   if (p >= 40) return 'linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)';
   return 'linear-gradient(90deg, #ef4444, #fca5a5, #ef4444)';
 };
+
+// ... existing imports and functions ...
+
+// --- NEW: Aggregate All History ---
+export const getAllEventsHistory = () => {
+  const allEvents = [];
+
+  // Scan all keys in localStorage
+  Object.keys(localStorage).forEach(key => {
+    // We only want keys that start with 'daily-goals-events-'
+    if (key.startsWith('daily-goals-events-')) {
+      try {
+        const raw = localStorage.getItem(key);
+        const data = JSON.parse(raw); // This is an object: { "2024-11-24": [...], "2024-11-25": [...] }
+
+        if (data) {
+          // Iterate over every date in this month's file
+          Object.entries(data).forEach(([dateStr, eventsList]) => {
+            if (Array.isArray(eventsList)) {
+              eventsList.forEach(ev => {
+                // Push into our master list
+                allEvents.push({
+                  ...ev,
+                  date: dateStr, // Keep track of the date
+                  storageKey: key // Keep track of which file it came from
+                });
+              });
+            }
+          });
+        }
+      } catch (e) { console.error(e); }
+    }
+  });
+
+  // Sort by date (Newest first)
+  return allEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
+};

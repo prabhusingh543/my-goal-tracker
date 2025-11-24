@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 // Imports from other files
 import ThemeToggle from './components/ThemeToggle';
 import DayEventsEditor from './components/DayEventsEditor';
+import TaskHistoryModal from './components/TaskHistoryModal';
 import { 
   hoverCardVariants, hoverDayCell, checkboxVisualVariants, 
   progressVariants, checkmarkVariants 
@@ -18,7 +19,7 @@ import {
 export default function DailyGoalTracker() {
   const today = new Date();
   
-  // State
+  // --- STATE ---
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [activities, setActivities] = useState(() => loadInitialActivities(today.getFullYear(), today.getMonth()));
@@ -29,6 +30,9 @@ export default function DailyGoalTracker() {
 
   const [newActivityName, setNewActivityName] = useState('');
   const [lastRemoved, setLastRemoved] = useState(null);
+  
+  // Modal State
+  const [showHistory, setShowHistory] = useState(false);
 
   // Span inputs
   const [pendingFrom, setPendingFrom] = useState('1');
@@ -69,33 +73,27 @@ export default function DailyGoalTracker() {
     const mt = daysInMonth(year, month);
     setDayFrom(1); setDayTo(mt); setPendingFrom('1'); setPendingTo(String(mt));
     setSelectedDay(null); 
-    
-    // Load activities (will inherit IDs from prev month if new month is empty)
     setActivities(loadInitialActivities(year, month));
     setEvents(loadInitialEvents(year, month));
     setIsDataLoaded(true);
   }, [year, month]);
 
-  // --- NEW: AUTO-SCROLL TO TODAY ON LOAD ---
+  // Auto-Scroll
   useEffect(() => {
     const timer = setTimeout(() => {
       const t = new Date();
-      // Check if we are viewing the actual current month/year
       if (year === t.getFullYear() && month === t.getMonth()) {
         const d = t.getDate();
         if (scrollRef.current) {
           const container = scrollRef.current;
           const element = document.getElementById(`day-header-${d}`);
-          
           if (element) {
-            // Center the element in the container
             const scrollPos = element.offsetLeft - (container.clientWidth / 2) + (element.clientWidth / 2);
             container.scrollTo({ left: scrollPos, behavior: 'smooth' });
           }
         }
       }
-    }, 500); // 500ms delay allows DOM to paint
-
+    }, 500); 
     return () => clearTimeout(timer);
   }, [year, month, isDataLoaded]); 
 
@@ -157,21 +155,14 @@ export default function DailyGoalTracker() {
 
   function isDayLocked(d) {
     const cellDate = new Date(year, month, d);
-    cellDate.setHours(0, 0, 0, 0); // Normalize to midnight
-
+    cellDate.setHours(0, 0, 0, 0); 
     const today = new Date();
     today.setHours(0, 0, 0, 0); 
 
-    // 1. Block Future
     if (cellDate > today) return true;
-
-    // 2. Block Past > 1 Day (Strict Streak)
     const diffTime = today.getTime() - cellDate.getTime();
     const diffDays = diffTime / (1000 * 3600 * 24);
-
-    // Allowed: Today (0) and Yesterday (1). Older (2+) are locked.
     if (diffDays > 1) return true;
-
     return false;
   }
 
@@ -180,41 +171,29 @@ export default function DailyGoalTracker() {
 
     setActivities(prev => prev.map(act => {
       if (act.id !== activityId) return act;
-      
       const copy = { ...act.checks };
       const k = dateString(year, month, day);
       const isChecking = !copy[k]; 
-      
       if (copy[k]) delete copy[k]; else copy[k] = true;
 
-      // Confetti Logic
       if (isChecking) {
          const mt = daysInMonth(year, month);
          const start = Math.max(1, Math.min(dayFrom, mt));
          const end = Math.max(1, Math.min(dayTo, mt));
          const s = Math.min(start, end);
-         
          const effectiveEnd = (year === today.getFullYear() && month === today.getMonth()) 
             ? Math.min(Math.max(start, end), today.getDate()) 
             : Math.max(start, end);
 
          let checkedCount = 0;
          const totalDays = effectiveEnd - s + 1;
-
          for (let d = s; d <= effectiveEnd; d++) {
             if (copy[dateString(year, month, d)]) checkedCount++;
          }
-
          if (totalDays > 0 && checkedCount === totalDays) {
-            confetti({
-               particleCount: 100,
-               spread: 70,
-               origin: { y: 0.6 },
-               colors: ['#6366f1', '#10b981', '#f59e0b'] 
-            });
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#6366f1', '#10b981', '#f59e0b'] });
          }
       }
-
       return { ...act, checks: copy };
     }));
   }
@@ -351,6 +330,7 @@ export default function DailyGoalTracker() {
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
         </div>
 
+        {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
@@ -378,13 +358,17 @@ export default function DailyGoalTracker() {
               className="w-16 md:w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 text-center text-gray-700 dark:text-gray-200 font-medium rounded-lg shadow-sm px-1 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
             />
 
+            {/* TODAY BUTTON: Sky Blue Theme */}
             <motion.button 
-                whileHover={{ scale: 1.05, y: -2 }}
+                whileHover={{ scale: 1.05, y: -1 }}
                 whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 onClick={goToTodayAndHighlight} 
-                aria-label="Go to today"
-                className="px-3 py-1.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-xl text-xs md:text-sm font-semibold hover:bg-indigo-200 transition-colors"
+                className="
+                  px-4 py-2 rounded-xl text-xs md:text-sm font-bold shadow-sm transition-all
+                  bg-sky-100 text-sky-700 border border-sky-200
+                  hover:bg-sky-200 hover:shadow-md
+                  dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800
+                "
             >
                 Today
             </motion.button>
@@ -396,6 +380,7 @@ export default function DailyGoalTracker() {
           </div>
         </div>
 
+        {/* INPUT AREA */}
         <div className="mb-6 flex flex-col md:flex-row gap-3">
           <div className="flex-1 w-full relative group">
             <input 
@@ -405,19 +390,74 @@ export default function DailyGoalTracker() {
               onChange={e => setNewActivityName(e.target.value)} 
               onKeyDown={e => { if (e.key === 'Enter') addActivity(); }} 
             />
-            <button onClick={addActivity} className="absolute right-2 top-2 p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-lg shadow-indigo-200 dark:shadow-none">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
+            
+            {/* ADD BUTTON: Indigo/Purple Gradient */}
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={addActivity} 
+              className="
+                absolute right-2 top-2 p-2 rounded-lg shadow-lg text-white transition-all
+                bg-gradient-to-r from-indigo-600 to-violet-600
+                hover:shadow-indigo-500/30 hover:from-indigo-500 hover:to-violet-500
+              "
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </motion.button>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto md:overflow-visible pb-1 md:pb-0">
-             <button onClick={exportMonth} className="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors text-sm md:text-base">Export</button>
-             <label className="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors cursor-pointer whitespace-nowrap text-sm md:text-base">
+             
+             {/* HISTORY BUTTON: Amber Theme */}
+             <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowHistory(true)}
+                className="
+                  flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition-all whitespace-nowrap
+                  bg-amber-50 text-amber-700 border border-amber-200
+                  hover:bg-amber-100 hover:border-amber-300 hover:shadow-md
+                  dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800
+                "
+              >
+                <span>📜 History</span>
+              </motion.button>
+
+             {/* EXPORT BUTTON: Slate Theme */}
+             <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={exportMonth} 
+                className="
+                  px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition-all
+                  bg-slate-100 text-slate-700 border border-slate-200
+                  hover:bg-slate-200 hover:text-slate-900
+                  dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700
+                "
+             >
+                Export
+             </motion.button>
+
+             {/* IMPORT BUTTON: Outline Theme */}
+             <motion.label 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="
+                  px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap
+                  bg-white text-slate-600 border-2 border-slate-100
+                  hover:border-indigo-200 hover:text-indigo-600
+                  dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:border-slate-600
+                "
+             >
                Import <input type="file" accept="application/json" className="hidden" onChange={e => e.target.files?.[0] && importMonth(e.target.files[0])} />
-             </label>
+             </motion.label>
           </div>
         </div>
 
+        {/* RANGE CONTROLS */}
         <div className={`mb-6 p-3 md:p-4 rounded-2xl border border-gray-100 dark:border-slate-700 flex flex-wrap items-center gap-2 md:gap-3 transition-colors ${darkMode ? 'bg-slate-800/50' : 'bg-gray-50/50'}`}>
           <div className="text-xs md:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-full md:w-auto">View Range</div>
           <div className="flex items-center gap-2">
@@ -425,15 +465,40 @@ export default function DailyGoalTracker() {
             <span className="text-gray-400">-</span>
             <input value={pendingTo} onChange={e => { setPendingTo(e.target.value); setSpanError(''); }} className="w-12 md:w-14 text-center p-1.5 rounded-lg bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 focus:border-indigo-500 outline-none text-sm" />
           </div>
-          <button disabled={!canApply} onClick={applySpan} className={`px-3 md:px-4 py-1.5 rounded-lg font-medium text-xs md:text-sm transition-all ${canApply ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none' : 'bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500'}`}>Set</button>
-          <button 
+          
+          {/* SET VIEW: Teal Theme */}
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={!canApply} 
+            onClick={applySpan} 
+            className={`
+              px-4 py-1.5 rounded-lg font-bold text-xs md:text-sm transition-all shadow-sm
+              ${canApply 
+                ? 'bg-teal-500 text-white shadow-teal-200 hover:bg-teal-600 hover:shadow-md dark:shadow-none' 
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+              }
+            `}
+          >
+            Set View
+          </motion.button>
+
+          {/* RESET: Rose Outline */}
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => { 
               setDayFrom(1); setDayTo(daysInMonth(year, month)); setPendingFrom('1'); setPendingTo(String(daysInMonth(year, month))); 
             }} 
-            className="px-3 py-1.5 text-xs md:text-sm text-gray-500 bg-blue-50 border border-blue-200 rounded-md hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="
+              px-4 py-1.5 rounded-lg font-bold text-xs md:text-sm transition-all
+              bg-white border border-gray-200 text-gray-500
+              hover:border-rose-200 hover:text-rose-500 hover:bg-rose-50
+              dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:text-rose-400
+            "
           >
             Reset
-          </button>
+          </motion.button>
           <div className="w-full md:w-auto text-xs font-medium text-rose-500">{spanError}</div>
         </div>
 
@@ -441,9 +506,9 @@ export default function DailyGoalTracker() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="hidden md:table-cell p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 bg-gray-50 dark:bg-slate-900 z-30 w-16 min-w-[4rem] shadow-sm">#</th>
+                <th className="hidden md:table-cell p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 bg-gray-100 dark:bg-slate-900 z-30 w-16 min-w-[4rem] shadow-sm">#</th>
                 
-                <th className="p-2 md:p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 bg-gray-50 dark:bg-slate-900 z-30 min-w-[120px] md:min-w-[110px] shadow-sm">ACTIVITY</th>
+                <th className="p-2 md:p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 bg-gray-100 dark:bg-slate-900 z-30 min-w-[120px] md:min-w-[110px] shadow-sm">ACTIVITY</th>
                 
                 {shownDays.map(d => {
                   const evs = getEventsForDay(d);
@@ -477,7 +542,7 @@ export default function DailyGoalTracker() {
                   );
                 })}
 
-                <th className="p-2 md:p-4 text-center text-xs font-extrabold text-gray-500 uppercase tracking-wider border-b border-l border-gray-100 dark:border-slate-700 min-w-[100px] md:min-w-[150px] sticky right-0 z-30 bg-gray-50 dark:bg-slate-900 shadow-sm">
+                <th className="p-2 md:p-4 text-center text-xs font-extrabold text-gray-500 uppercase tracking-wider border-b border-l border-gray-100 dark:border-slate-700 min-w-[100px] md:min-w-[150px] sticky right-0 z-30 bg-gray-100 dark:bg-slate-900 shadow-sm">
                   PROGRESS %
                 </th>
               </tr>
@@ -502,11 +567,11 @@ export default function DailyGoalTracker() {
                       role="group"
                       tabIndex={0}
                     >
-                      <td className="hidden md:table-cell p-4 border-b border-r border-gray-100 dark:border-slate-700 font-medium text-gray-400 text-center sticky left-0 z-20 group-hover:z-50 shadow-sm transition-colors bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
+                      <td className="hidden md:table-cell p-4 border-b border-r border-gray-100 dark:border-slate-700 font-medium text-gray-400 text-center sticky left-0 z-20 group-hover:z-50 shadow-sm transition-colors bg-gray-100 dark:bg-slate-900 group-hover:bg-gray-200 dark:group-hover:bg-black">
                         {idx + 1}
                       </td>
                       
-                      <td className="p-2 md:p-4 border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 z-20 group-hover:z-50 shadow-sm transition-colors align-top bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black">
+                      <td className="p-2 md:p-4 border-b border-r border-gray-100 dark:border-slate-700 sticky left-0 md:left-16 z-20 group-hover:z-50 shadow-sm transition-colors align-top bg-gray-100 dark:bg-slate-900 group-hover:bg-gray-200 dark:group-hover:bg-black">
                         <div className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-lg break-words max-w-[110px] md:max-w-none">{a.name}</div>
                         
                         <div className="flex flex-col items-start gap-1 mt-1 md:mt-2">
@@ -573,7 +638,7 @@ export default function DailyGoalTracker() {
                         );
                       })}
                       
-                      <td className="p-2 md:p-4 border-b border-l border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 group-hover:bg-gray-100 dark:group-hover:bg-black transition-colors sticky right-0 z-20">
+                      <td className="p-2 md:p-4 border-b border-l border-gray-100 dark:border-slate-700 bg-gray-100 dark:bg-slate-900 group-hover:bg-gray-200 dark:group-hover:bg-black transition-colors sticky right-0 z-20">
                         <motion.div className="progress-card rounded-md p-2" variants={progressVariants} initial="initial" whileHover="hover">
                             <div className="text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400 text-right mb-1">{checkedCount}/{totalDays}</div>
                             <div className="flex items-center gap-2 md:gap-3">
@@ -595,6 +660,7 @@ export default function DailyGoalTracker() {
           </table>
         </div>
 
+        {/* Modals */}
         <AnimatePresence>
           {selectedDay && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
@@ -609,6 +675,17 @@ export default function DailyGoalTracker() {
                 onClose={() => setSelectedDay(null)}
               />
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showHistory && (
+            <TaskHistoryModal 
+              onClose={() => setShowHistory(false)} 
+              onDataChange={() => {
+                setEvents(loadInitialEvents(year, month));
+              }}
+            />
           )}
         </AnimatePresence>
         
