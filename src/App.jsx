@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 
 // Imports from other files
 import ThemeToggle from './components/ThemeToggle';
@@ -136,13 +137,48 @@ export default function DailyGoalTracker() {
     return cell.getTime() > now.getTime();
   }
 
-  function toggleCheck(activityId, day) {
+function toggleCheck(activityId, day) {
     if (isFutureDay(day)) return;
+
     setActivities(prev => prev.map(act => {
       if (act.id !== activityId) return act;
+      
       const copy = { ...act.checks };
       const k = dateString(year, month, day);
+      const isChecking = !copy[k]; // Are we adding a check?
+      
       if (copy[k]) delete copy[k]; else copy[k] = true;
+
+      // --- CONFETTI LOGIC ---
+      if (isChecking) {
+         // Calculate hypothetical new stats based on the updated 'copy'
+         const mt = daysInMonth(year, month);
+         const start = Math.max(1, Math.min(dayFrom, mt));
+         const end = Math.max(1, Math.min(dayTo, mt));
+         const s = Math.min(start, end);
+         const effectiveEnd = (year === today.getFullYear() && month === today.getMonth()) 
+            ? Math.min(Math.max(start, end), today.getDate()) 
+            : Math.max(start, end);
+
+         let checkedCount = 0;
+         const totalDays = effectiveEnd - s + 1;
+
+         for (let d = s; d <= effectiveEnd; d++) {
+            if (copy[dateString(year, month, d)]) checkedCount++;
+         }
+
+         // If we reached 100%, FIRE!
+         if (totalDays > 0 && checkedCount === totalDays) {
+            confetti({
+               particleCount: 100,
+               spread: 70,
+               origin: { y: 0.6 },
+               colors: ['#6366f1', '#10b981', '#f59e0b'] // Indigo, Emerald, Amber
+            });
+         }
+      }
+      // ---------------------
+
       return { ...act, checks: copy };
     }));
   }
