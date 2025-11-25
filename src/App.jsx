@@ -78,24 +78,33 @@ export default function DailyGoalTracker() {
     setIsDataLoaded(true);
   }, [year, month]);
 
-  // Auto-Scroll
+  // --- UPDATED: AUTO-SCROLL & AUTO-SELECT TODAY ON LOAD ---
   useEffect(() => {
     const timer = setTimeout(() => {
       const t = new Date();
+      // Check if we are viewing the actual current month/year
       if (year === t.getFullYear() && month === t.getMonth()) {
         const d = t.getDate();
+        
+        // 1. Select Today (Highlights the column & Opens the Editor)
+        setSelectedDay(d); 
+
+        // 2. Scroll to Today
         if (scrollRef.current) {
           const container = scrollRef.current;
           const element = document.getElementById(`day-header-${d}`);
+          
           if (element) {
+            // Center the element in the container
             const scrollPos = element.offsetLeft - (container.clientWidth / 2) + (element.clientWidth / 2);
             container.scrollTo({ left: scrollPos, behavior: 'smooth' });
           }
         }
       }
-    }, 500); 
+    }, 500); // 500ms delay ensures the UI is painted before scrolling
+
     return () => clearTimeout(timer);
-  }, [year, month, isDataLoaded]); 
+  }, [year, month, isDataLoaded]);
 
   useEffect(() => {
     if (!isDataLoaded) return;

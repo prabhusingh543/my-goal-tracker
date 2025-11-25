@@ -198,3 +198,4 @@ export const getAllEventsHistory = () => {
   // Sort by date (Newest first)
   return allEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
 };
+

@@ -71,11 +71,22 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
   const [type, setType] = useState('Work');
   const [priority, setPriority] = useState('Normal');
 
+  // --- NEW: CALCULATE IF DAY IS PAST ---
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  // Parse dateKey (YYYY-MM-DD) to local date object
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const currentViewDate = new Date(y, m - 1, d);
+  
+  const isPast = currentViewDate < today;
+  // -------------------------------------
+
   // Filter Lists
   const scheduleItems = events.filter(e => e.fromTime).sort((a, b) => a.fromTime.localeCompare(b.fromTime));
   const eventItems = events.filter(e => !e.fromTime);
 
-  // --- CALCULATE EFFICIENCY (Schedule Only) ---
+  // Calculate Efficiency
   const totalSchedule = scheduleItems.length;
   const completedSchedule = scheduleItems.filter(e => e.isCompleted).length;
   const progressPercent = totalSchedule === 0 ? 0 : Math.round((completedSchedule / totalSchedule) * 100);
@@ -88,6 +99,10 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
 
   function handleAdd(e) {
     e?.preventDefault();
+    
+    // Guard Clause: Prevent adding schedule in past
+    if (activeTab === 'schedule' && isPast) return;
+
     const t = title.trim();
     if (!t) return;
 
@@ -148,7 +163,7 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900">
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <span>📅</span> {dateKey}
+            <span>📅</span> {dateKey} {isPast && <span className="text-[10px] px-2 py-0.5 bg-gray-200 text-gray-500 rounded-full dark:bg-slate-700 dark:text-gray-400">Past</span>}
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">Plan & Track your day</p>
         </div>
@@ -164,42 +179,51 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
             <button onClick={() => setActiveTab('event')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${activeTab === 'event' ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-sm' : 'text-gray-500 dark:text-slate-400'}`}>Event</button>
           </div>
 
-          <form onSubmit={handleAdd} className="flex flex-col gap-4">
-            {activeTab === 'schedule' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-2 gap-3">
-                <TimePicker label="Start" value={fromTime} onChange={setFromTime} />
-                <TimePicker label="End" value={toTime} onChange={setToTime} />
-              </motion.div>
-            )}
-
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">{activeTab === 'schedule' ? 'Task Name' : 'Event Title'}</label>
-              <input value={title} onChange={e => setTitle(e.target.value)} placeholder={activeTab === 'schedule' ? "e.g., Team Meeting" : "e.g., Birthday Party"} className="w-full p-2.5 text-sm rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none dark:text-white transition-all" />
+          {/* --- CONDITIONAL RENDERING: HIDE FORM IF PAST & SCHEDULE TAB --- */}
+          {isPast && activeTab === 'schedule' ? (
+            <div className="flex flex-col items-center justify-center h-40 text-center p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+               <div className="text-3xl mb-2 grayscale opacity-50">⏳</div>
+               <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Scheduling Locked</div>
+               <div className="text-[10px] text-gray-400 mt-1">You cannot plan schedule items for past dates.</div>
             </div>
+          ) : (
+            <form onSubmit={handleAdd} className="flex flex-col gap-4">
+              {activeTab === 'schedule' && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-2 gap-3">
+                  <TimePicker label="Start" value={fromTime} onChange={setFromTime} />
+                  <TimePicker label="End" value={toTime} onChange={setToTime} />
+                </motion.div>
+              )}
 
-            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Category</label>
-                <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 text-xs font-medium rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 outline-none dark:text-white cursor-pointer">
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Work</option>
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Personal</option>
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Exam</option>
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Health</option>
-                </select>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">{activeTab === 'schedule' ? 'Task Name' : 'Event Title'}</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder={activeTab === 'schedule' ? "e.g., Team Meeting" : "e.g., Birthday Party"} className="w-full p-2.5 text-sm rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none dark:text-white transition-all" />
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Priority</label>
-                <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full p-2 text-xs font-medium rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 outline-none dark:text-white cursor-pointer">
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Normal</option>
-                  <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Important</option>
-                </select>
-              </div>
-            </div>
 
-            <button type="submit" className={`mt-2 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-95 ${activeTab === 'schedule' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400'}`}>
-              {activeTab === 'schedule' ? '+ Add to Schedule' : '+ Add Event'}
-            </button>
-          </form>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Category</label>
+                  <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 text-xs font-medium rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 outline-none dark:text-white cursor-pointer">
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Work</option>
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Personal</option>
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Exam</option>
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Health</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Priority</label>
+                  <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full p-2 text-xs font-medium rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 outline-none dark:text-white cursor-pointer">
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Normal</option>
+                    <option className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Important</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className={`mt-2 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-95 ${activeTab === 'schedule' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400'}`}>
+                {activeTab === 'schedule' ? '+ Add to Schedule' : '+ Add Event'}
+              </button>
+            </form>
+          )}
         </div>
 
         {/* RIGHT COLUMN: DISPLAY */}
@@ -282,7 +306,7 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
             </>
           )}
 
-          {/* === EVENT TAB VIEW (No Checkboxes) === */}
+          {/* === EVENT TAB VIEW === */}
           {activeTab === 'event' && (
             <>
                 {eventItems.length > 0 ? (
@@ -301,7 +325,6 @@ export default function DayEventsEditor({ dateKey, events = [], onAdd, onUpdate,
                                     }`}
                                 >
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                    {/* Removed ModalCheckbox */}
                                     <div className="text-sm font-medium truncate text-gray-700 dark:text-gray-300">
                                         {ev.title}
                                     </div>
